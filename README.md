@@ -1,4 +1,4 @@
- [**ᐸ**](https://github.com/Scholl-Shuttle) Voltar para Home.
+ [`Home`](https://github.com/Scholl-Shuttle) Voltar para Home.
 
 # Banco de dados do VRUMM
 
