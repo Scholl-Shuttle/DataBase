@@ -186,3 +186,54 @@ begin
 	)
 end;
 $$
+
+-- ===========================================================
+create or replace procedure cadastrar_motorista(
+    p_user_id int,
+    p_cnh varchar,
+    p_status varchar,
+    p_endereco_id int,
+    p_executor_id int,
+    p_executor_tipo varchar
+)
+language plpgsql
+as $$
+begin
+    -- validação
+    if not exists (select 1 from usuarios where user_id = p_user_id and tipo_user_id = 
+        (select tipo_user_id from tipo_user where tipo = 'motorista')) then
+        perform registrar_log(
+            'cadastrar_motorista',
+            'ERRO',
+            'Usuário informado não é do tipo motorista',
+            null,
+            p_executor_id,
+            p_executor_tipo
+        );
+        raise exception 'Usuário informado não é um motorista válido.';
+    end if;
+
+    if p_cnh is null or length(p_cnh) < 10 then
+        raise exception 'CNH inválida.';
+    end if;
+
+    if p_status not in ('ativo', 'inativo') then
+        raise exception 'Status inválido. Deve ser "ativo" ou "inativo".';
+    end if;
+
+    -- se tudo der certo.
+    insert into motoristas(user_id, cnh, status, endereco_id)
+    values (p_user_id, p_cnh, p_status, p_endereco_id);
+
+    -- log de sucesso
+    perform registrar_log(
+        'cadastrar_motorista',
+        'SUCESSO',
+        'Motorista cadastrado com sucesso.',
+        format('user_id=%s, cnh=%s', p_user_id, p_cnh),
+        p_executor_id,
+        p_executor_tipo
+    );
+
+end;
+$$;
