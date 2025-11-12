@@ -122,7 +122,7 @@ create table motorista_veiculo (
 CREATE TABLE responsaveis (
     responsavel_id SERIAL PRIMARY KEY,
     usuario_id INT REFERENCES usuarios(user_id) on delete cascade,
-    tipo_relacao VARCHAR(50) CHECK (tipo_relacao IN ('pai', 'mae', 'outro')),
+    tipo_relacao VARCHAR(50) CHECK (tipo_relacao IN ('pai', 'mae', 'outro')), -- criar tabela auxiliar
     principal BOOLEAN DEFAULT FALSE,
 	endereco_id int references enderecos (endereco_id),
     create_date DATE DEFAULT CURRENT_DATE,
@@ -209,5 +209,50 @@ CREATE TABLE chat (
     lida BOOLEAN DEFAULT FALSE
 );
 
+INSERT INTO tipo_pagamento (metodo) VALUES ('PIX'), ('Crédito'), ('Débito');
+INSERT INTO documentacao (validacao) VALUES (TRUE), (FALSE);
+
+select * from documentacao
+select * from tipo_pagamento
+
+-- 15. TABELA DE AUXILIAR TIPO USUARIO
+-- guarda dados específicos do Tipo de usuario
+-- (Motorista, responsavel, admin)
+create table tipo_user(
+	tipo_user_id serial primary key,
+	tipo varchar(50) unique
+);
+
+insert into tipo_user (tipo)
+values ('responsavel'),('motorista'),('admin');
+
+-- 16. TABELA DE LOGS
+-- guarda dados específicos de logs
+-- (precedimento, data, erro e etc)
+create table logs_sistema(
+	log_id serial primary key,
+	procedimento varchar(100) not null, -- oq foi feito
+	mensagem text not null, -- resumo do que ocorreu
+	detalhe text,
+	usuario_id int references usuarios(user_id),
+	tipo_usuario int references tipo_user(tipo_user_id), 
+	data_evento TIMESTAMP default current_timestamp
+)
 
 
+-- alterando tabela usuarios
+alter table usuarios
+add column tipo_user_id int;
+
+alter table usuarios
+add constraint fk_tipo_usuario
+foreign key (tipo_user_id) references tipo_user(tipo_user_id);
+
+alter table usuarios
+drop column tipo_user;
+
+/*
+ 1 - arrumar tabelas que tem "tipo_usuario" e colocar a fk (feito)
+ 2 - terminar procedure e funções de cadastrar usuarios
+ 3 - criar triggers 
+ */
