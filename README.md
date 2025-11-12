@@ -1,3 +1,5 @@
+ [`ᐸ`](https://github.com/Scholl-Shuttle) Voltar para Home.
+
 # Banco de dados do VRUMM
 
 > Banco de Dados relacional em **PostgreSQL** para gerenciamento de transporte escolar — incluindo motoristas, veículos, responsáveis, crianças, escolas, rotas e pagamentos.
@@ -41,6 +43,11 @@ O banco é composto por **14 tabelas principais**, divididas em módulos:
 
 ---
 
+## 📐 Modelagem do Banco de dados
+![Diagrama do Banco de Dados](./modelagem/modelagem_v3.png)
+
+
+---
 ## 🏗️ Ordem de Criação das Tabelas
 
 Para evitar erros de chave estrangeira, siga esta ordem ao executar os scripts:
