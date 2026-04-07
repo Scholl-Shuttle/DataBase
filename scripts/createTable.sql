@@ -4,173 +4,368 @@
 -- OBJETIVO: Gerenciar transporte, motoristas, crianças, rotas e pagamentos
 -- ==========================================================
 
--- 🧩 1. TABELA DE USUÁRIOS
+
+-- TABELAS AUXILIARES
+
+-- 2. TABELA DE AUXILIAR TIPO DE PAGAMENTO
+-- guardar dados dos tipos de pagamentos
+-- (Mensalidade, semestral, Anual).
+create table tipo_pagamento(
+	tipo_pag_id serial primary key,
+	metodo varchar(50)not null unique
+);
+
+
+
+
+create table forma_pagamento(
+	forma_pag_id serial primary key,
+	forma varchar(50) not null
+);
+
+
+
+
+-- 3. TABELA DE AUXILIAR DE VALIDAÇÂO DE DOCUMENTO
+-- guardar dados dos da validação do veiculo
+-- (Documentos validos, invalidos).
+create table status_documento(
+	status_doc_id serial primary key,
+	status varchar(20) not null check (status in ('pendente','aprovado','vencido', 'reprovado'))
+);
+
+select * from status_documento
+-- 4 TABELA AUXILIAR TIPO ESCOLA
+-- guarda dados específicos do Tipo de
+-- (Particular, Governo, estadual, creche)
+create table tipo_escola(
+	tipo_escola_id serial primary key,
+	tipo varchar (50)not null unique
+);
+
+-- 5 TABELA AUXILIAR TIPO RESPONSAVEL
+-- qual a relação com a criança
+-- (Pai, Mãe, Tia, Avo ...)
+create table tipo_responsavel(
+	tipo_responsavel_id serial primary key,
+	tipo varchar(50) not null
+);
+
+select * from tipo_responsavel
+
+-- 6 TABELA AUXILIAR STATUS DE PAGAMENTO
+-- pago, pendente, rejeitado, a vencer
+create table status_pagamento(
+	status_pag_id serial primary key,
+	tipo varchar(20) not null unique
+);
+
+-- 7 TABELA AUXILIAR DIAS_SEMANA
+-- segunda, terça, quarta ...
+create table dias_semana (
+    dia_id serial primary key,
+    nome varchar(20) unique not null
+);
+
+-- 8 TABELA AUXILIAR TIPO_TRAJETO
+-- Ida, volta, escola ...
+create table tipo_trajeto (
+    tipo_trajeto_id serial primary key,
+    nome varchar(20) unique not null
+);
+
+
+-- ========= TABELAS PLANOS E FINANÇEIRA ==========
+
+-- TABELA DE PLANOS
+create table planos_transporte(
+	plano_id serial primary key,
+
+	nome varchar(50) not null,
+	descricao text,
+
+	valor_base decimal(10,2) not null,
+
+	tipo_reajuste varchar(20)check (tipo_reajuste in('percentual', 'fixo')),
+	valor_reajuste decimal(10,2) default 0,
+	ativo boolean default true,
+
+	created_at timestamp default current_timestamp
+);
+
+alter table planos_transporte add column 
+multa decimal(10,2) default 0;
+
+
+-- ========= TABELAS =========
+
+-- TABELA DE EMPRESA
+-- nesta tabela é onde fica dados da empresa/pj
+-- caso uma pessoa tenha mais de um veiculo e pague para motoristas
+create table empresas(
+	empresa_id serial primary key,
+
+	nome varchar(100) not null,
+	cnpj varchar(18) unique,
+
+	email_contato varchar(100),
+	telefone_contato varchar(15),
+
+	ativo boolean default true,
+
+	created_at timestamp default current_timestamp,
+    updated_at timestamp default current_timestamp
+);
+
+
+-- TABELA DE USUÁRIOS
 -- tabela generica onde vai guardar dados de acesso
 -- (login, senha, tipo, data de criação e etc).
 create table usuarios(
 	user_id serial primary key,
 	nome varchar(100) not null,
-	email varchar(100) not null,
+	cpf varchar(14)not null unique,
+	email varchar(100) not null unique,
 	senha_hash varchar(255) not null,
 	tel_user varchar(15) not null,
-	tipo_user varchar(20) check (tipo_user in ('responsavel', 'motorista', 'admim')),
-	create_date date default current_date,
-	update_date date default current_date
+
+	ativo boolean default true,
+	
+	created_at TIMESTAMP default current_TIMESTAMP,
+	updated_at TIMESTAMP default current_TIMESTAMP
+);
+
+-- TABELA INTERMEDIARIA EMPRESA_USUARIO
+create table empresa_usuario(
+	empresa_id int not null references empresas(empresa_id) on delete cascade,
+	user_id int not null references usuarios(user_id) on delete cascade,
+
+	papel varchar(30) not null check (papel in('dono', 'gerente', 'motorista')),
+
+	ativo boolean default true,
+	created_at timestamp default current_timestamp,
+
+	primary key (empresa_id, user_id)
 );
 
 
-
--- 🧩 2. TABELA DE ENDEREÇOS
+-- TABELA DE ENDEREÇOS
 -- guardar dados específicos de endereços
 -- (rua, bairro, cep e etc).
-CREATE TABLE enderecos (
+CREATE TABLE enderecos(
     endereco_id SERIAL PRIMARY KEY,
-    rua VARCHAR(100),
-    numero VARCHAR(10),
-    bairro VARCHAR(50),
-    cidade VARCHAR(50),
-    estado VARCHAR(2),
-    cep VARCHAR(10),
+	
+    rua VARCHAR(120) not null,
+    numero VARCHAR(20),
+	complemento varchar(200),
+    bairro VARCHAR(80)not null,
+    cidade VARCHAR(80)not null,
+    estado VARCHAR(2)not null,
+    cep VARCHAR(10)not null,
+
+	
     latitude DECIMAL(9,6),
     longitude DECIMAL(9,6),
-    create_date DATE DEFAULT CURRENT_DATE,
-    update_date DATE DEFAULT CURRENT_DATE
+
+	referencia varchar(255),
+	
+    created_at TIMESTAMP default current_TIMESTAMP,
+    updated_at TIMESTAMP default current_TIMESTAMP
 );
 
+-- TABELA usuario enderecos
+-- guarda informações especifica de enderecos de usuarios
+create table usuarios_endereco(
+	user_id int not null references usuarios(user_id) on delete cascade,
+	endereco_id int not null references enderecos(endereco_id) on delete cascade,
 
+	tipo varchar(30),
+	principal boolean default false,
 
--- 🧩 3. TABELA DE ESCOLA
+	created_at timestamp default current_timestamp,
+
+	primary key(user_id, endereco_id)
+);
+
+-- TABELA DE ESCOLA
 -- guardar dados específicos da escola
 -- (Nome, Endereço, horarios e etc).
 CREATE TABLE escolas (
     escola_id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
-    endereco_id int references enderecos (endereco_id), 
-    create_date DATE DEFAULT CURRENT_DATE,
-    update_date DATE DEFAULT CURRENT_DATE
+	tipo_escola_id int not null references tipo_escola(tipo_escola_id),
+
+	ativo boolean default true,
+	
+    created_at TIMESTAMP default current_TIMESTAMP,
+    updated_at TIMESTAMP default current_TIMESTAMP
 );
 
 
+create table escola_endereco(
+	escola_id int not null references escolas(escola_id) on delete cascade,
+	endereco_id int not null references enderecos(endereco_id) on delete cascade,
 
--- 🧩 4. TABELA DE AUXILIAR TIPO DE PAGAMENTO
--- guardar dados dos tipos de pagamentos
--- (PIX, débito, Credito).
-create table tipo_pagamento(
-	tipo_id serial primary key,
-	metodo varchar unique
+	principal boolean default true,
+
+	primary key (escola_id, endereco_id)
 );
 
 
-
--- 🧩 5. TABELA DE AUXILIAR DE VALIDAÇÂO DE DOCUMENTO
--- guardar dados dos da validação do veiculo
--- (Documentos validos, invalidos).
-create table documentacao(
-	doc_id serial primary key,
-	validacao boolean
-);
-
-
-
--- 🧩 6. TABELA DE MOTORISTAS
--- guardar dados específicos do motorista
--- (CNH, Veiculo, status e etc).
-create table motoristas(
-	motorista_id serial primary key,
-	user_id INT not null references usuarios(user_id) on delete cascade,
-	cnh varchar(20) not null,
-	status varchar(20) check(status in('ativo', 'inativo')),
-	endereco_id int references enderecos(endereco_id),
-	create_date date default current_date,
-	update_date date default current_date
-);
-
-
-
--- 🧩 7. TABELA DE VEICULOS
+-- TABELA DE VEICULOS
 -- guardar dados específicos do veiculo
 -- (placa, modelo, ano e etc).
 Create table veiculos(
 	veiculo_id serial primary key,
+	empresa_id int not null references empresas(empresa_id) on delete cascade,
+	
 	placa_veiculo varchar(10) unique not null,
+	marca_veiculo varchar(50) not null,
 	modelo_veiculo varchar(50) not null,
-	capacidade int,
-	valid_doc int not null references documentacao(doc_id),
-	ano_veiculo varchar(4),
-	create_date date default current_date,
-	update_date date default current_date
+	
+	capacidade int check (capacidade > 0),
+	ano_veiculo int check (ano_veiculo >= 2000),
+	status_doc_id int not null references status_documento(status_doc_id),
+
+	ativo boolean default true,
+	
+	created_at TIMESTAMP default current_TIMESTAMP,
+	updated_at TIMESTAMP default current_TIMESTAMP
+);
+
+
+-- TABELA DE MOTORISTAS
+-- guardar dados específicos do motorista
+-- (CNH, Veiculo, status e etc).
+create table motoristas(
+	motorista_id serial primary key,
+	empresa_id int not null references empresas(empresa_id) on delete cascade,
+	
+	user_id INT not null references usuarios(user_id) on delete cascade,
+	cnh varchar(20) not null unique,
+	
+	status_cnh boolean not null,
+	ativo boolean default true,
+	
+	created_at TIMESTAMP default current_TIMESTAMP,
+	updated_at TIMESTAMP default current_TIMESTAMP
 );
 
 
 
--- 🧩 8. TABELA INTERMEDIARIA MOTORISTA_VEICULOS
+
+-- TABELA INTERMEDIARIA MOTORISTA_VEICULOS
 -- guardar dados específicos de motorista e veiculo
 -- (id_motorista, id_veiculo, Data de inicio e fim).
 create table motorista_veiculo (
-    motorista_id INT REFERENCES motoristas(motorista_id) ON DELETE CASCADE,
-    veiculo_id INT REFERENCES veiculos(veiculo_id) ON DELETE CASCADE,
-    data_inicio DATE DEFAULT CURRENT_DATE,
-    data_fim DATE,
+	motorista_id INT not null REFERENCES motoristas(motorista_id)ON DELETE CASCADE,
+	
+	data_inicio TIMESTAMP default current_TIMESTAMP,
+    data_fim TIMESTAMP default null,
+	
+    veiculo_id INT not null REFERENCES veiculos(veiculo_id)ON DELETE CASCADE ,
     PRIMARY KEY (motorista_id, veiculo_id)
 );
 
 
 
--- 🧩 9. TABELA DE RESPONSÁVEIS
+-- TABELA DE RESPONSÁVEIS
 -- guardar dados específicos de responsaveis
 -- (usuario, criançaa, tipo de relação e etc).
 CREATE TABLE responsaveis (
     responsavel_id SERIAL PRIMARY KEY,
-    usuario_id INT REFERENCES usuarios(user_id) on delete cascade,
-    tipo_relacao VARCHAR(50) CHECK (tipo_relacao IN ('pai', 'mae', 'outro')), -- criar tabela auxiliar
     principal BOOLEAN DEFAULT FALSE,
-	endereco_id int references enderecos (endereco_id),
-    create_date DATE DEFAULT CURRENT_DATE,
-    update_date DATE DEFAULT CURRENT_DATE
+	user_id INT not null REFERENCES usuarios(user_id) on delete cascade,
+	
+    created_at TIMESTAMP default current_TIMESTAMP,
+    updated_at TIMESTAMP default current_TIMESTAMP
 );
 
 
 
--- 🧩 10. TABELA DE CRIANÇA
+-- TABELA DE CRIANÇA
 -- guardar dados específicos da criança
 -- (nome, idade, escola e etc).
 CREATE TABLE criancas (
     crianca_id SERIAL PRIMARY KEY,
+	empresa_id int not null references empresas(empresa_id) on delete cascade,
+	
     nome VARCHAR(100) NOT NULL,
-    idade INT,
-	responsavel_main int not null references responsaveis(responsavel_id), -- responsavel principal
-	responsavel_Secon int references responsaveis(responsavel_id), -- responsavel segundario (opcional)
-	responsavel_terceiro INT REFERENCES responsaveis(responsavel_id),
-	motorista_id INT REFERENCES motoristas(motorista_id),
-    escola_id INT REFERENCES escolas(escola_id),
-    create_date DATE DEFAULT CURRENT_DATE,
-    update_date DATE DEFAULT CURRENT_DATE
+    dt_nascimento date not null,
+	cpf varchar(14) not null unique,
+	ativo boolean default true,
+    escola_id INT not null REFERENCES escolas(escola_id),
+
+	plano_id int references planos_transporte(plano_id),
+	
+    created_at TIMESTAMP default current_TIMESTAMP,
+    updated_at TIMESTAMP default current_TIMESTAMP
 );
 
 
+-- tabela intermediaria CRIANÇA_RESPONSAVEL
+create table criancas_responsaveis(
+	crianca_id int not null references criancas(crianca_id) on delete cascade,
+	responsavel_id int not null references responsaveis(responsavel_id)on delete cascade,
 
--- 🧩 11. TABELA DE PAGAMENTOS
+	tipo_responsavel_id int references tipo_responsavel(tipo_responsavel_id),
+	principal boolean default false,
+
+	created_at timestamp default current_timestamp,
+
+	primary key (crianca_id, responsavel_id)
+);
+
+
+alter table pagamentos
+add constraint uq_pagamento_mes_crianca
+unique (crianca_id, mes_mensalidade);
+
+-- TABELA DE PAGAMENTOS
 -- guardar dados específicos de pagamentos
 -- (dados responsaveis, valor, mes e etc).
 CREATE TABLE pagamentos (
     pagamento_id SERIAL PRIMARY KEY,
-    remetente_id INT REFERENCES usuarios(user_id),
-	valor DECIMAL(10,2) NOT NULL,
-    destinatario_id INT REFERENCES motoristas(motorista_id),
-	metodo_pag int not null references tipo_pagamento(tipo_id),
-    mes_mensalidade VARCHAR(7), -- formato YYYY-MM
-    status VARCHAR(20) CHECK (status IN ('pendente', 'pago')) DEFAULT 'pendente',
-    data_pagamento DATE DEFAULT CURRENT_DATE
+
+	crianca_id int not null unique references criancas(crianca_id),
+	
+	pagador_id INT not null unique REFERENCES responsaveis(responsavel_id),
+    empresa_id int not null unique references empresas(empresa_id) on delete cascade,
+	
+	valor_total DECIMAL(10,2) NOT NULL,
+	
+	tipo_pag_id int not null references tipo_pagamento(tipo_pag_id),
+	forma_pag_id int references forma_pagamento(forma_pag_id),
+	
+    mes_mensalidade DATE not null unique,
+    status_pag_id int not null references status_pagamento(status_pag_id),
+	
+    data_pagamento TIMESTAMP default current_TIMESTAMP
 );
 
 
+-- TABELA INTERMEDIARIA PAGAMENTO_CRIANÇA
+create table pagamento_crianca(
+	pagamento_id int not null references pagamentos(pagamento_id)on delete cascade,
+	crianca_id int not null references criancas(crianca_id) on delete cascade,
 
--- 🧩 12. TABELA DE LOCALIZAÇÃO EM TEMPO REAL
+	valor_base decimal(10,2) not null,
+	desconto decimal(10,2) default 0,
+	multa decimal(10,2) default 0,
+	reajuste decimal(10,2) default 0,
+
+	valor_final decimal(10,2) not null,
+	primary key (pagamento_id, crianca_id)
+);
+
+
+-- TABELA DE LOCALIZAÇÃO EM TEMPO REAL
 -- guardar dados específicos da localização
 -- (motorista, data_hora, localização e etc).
 CREATE TABLE localizacao_real_tempo (
     localizacao_id SERIAL PRIMARY KEY,
-    motorista_id INT REFERENCES motoristas(motorista_id),
+	empresa_id int not null references empresas(empresa_id) on delete cascade,
+    motorista_id INT not null REFERENCES motoristas(motorista_id),
     latitude DECIMAL(9,6),
     longitude DECIMAL(9,6),
     data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -178,81 +373,72 @@ CREATE TABLE localizacao_real_tempo (
 
 
 
--- 🧩 13. TABELA DE ROTINA DE TRANSPORTE
+-- TABELA DE ROTINA DE TRANSPORTE
 -- guardar dados específicos da rotina de rotas do motorista
 -- (criança, onde buscar, onde deixar e etc).
 CREATE TABLE rotina_transporte (
     rotina_id SERIAL PRIMARY KEY,
-    crianca_id INT REFERENCES criancas(crianca_id),
-    motorista_id INT REFERENCES motoristas(motorista_id),
-    dias_semana VARCHAR(20) CHECK (dias_semana IN ('segunda', 'terca', 'quarta', 'quinta', 'sexta')), -- lapidar
-    tipo_trajeto VARCHAR(20) CHECK (tipo_trajeto IN ('origem', 'escola', 'volta')), -- lapidar
-    endereco_origem_id INT REFERENCES enderecos(endereco_id), -- origem = Onde buscar a criança
-    endereco_escola_id INT REFERENCES enderecos(endereco_id), -- escola = Qual escola deixar
-	endereco_volta_id INT REFERENCES enderecos(endereco_id),   -- volta = Onde devolver a criança
-    horario_previsto TIME,
+	empresa_id int not null references empresas(empresa_id) on delete cascade,
+	
+    crianca_id INT not null REFERENCES criancas(crianca_id),
+    motorista_id INT not null REFERENCES motoristas(motorista_id),
+	
+    dia_id int not null references dias_semana(dia_id),
+    tipo_trajeto_id int not null references tipo_trajeto(tipo_trajeto_id),
+
+	endereco_origem_id int not null references enderecos(endereco_id),
+	endereco_destino_id int not null references enderecos(endereco_id),
+
+	horario_previsto time not null,
+	
     ativo BOOLEAN DEFAULT TRUE,
-    observacao TEXT
+    observacao TEXT,
+
+	ordem int,
+	
+	created_at timestamp default current_timestamp,
+	updated_at timestamp default current_timestamp
 );
 
 
 
--- 🧩 14. TABELA DE CHAT
+-- TABELA DE CHAT
 -- guardar dados específicos do chat
 -- (dados do usuario/motorista, data_hora e etc).
 CREATE TABLE chat (
     mensagem_id SERIAL PRIMARY KEY,
-    remetente_id INT REFERENCES usuarios(user_id),
-    destinatario_id INT REFERENCES usuarios(user_id),
-    conteudo TEXT NOT NULL,
+    remetente_id INT not null REFERENCES usuarios(user_id),
+    destinatario_id INT not null REFERENCES usuarios(user_id),
+    conteudo TEXT,
     data_envio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     lida BOOLEAN DEFAULT FALSE
 );
 
-INSERT INTO tipo_pagamento (metodo) VALUES ('PIX'), ('Crédito'), ('Débito');
-INSERT INTO documentacao (validacao) VALUES (TRUE), (FALSE);
 
-select * from documentacao
-select * from tipo_pagamento
-
--- 15. TABELA DE AUXILIAR TIPO USUARIO
--- guarda dados específicos do Tipo de usuario
--- (Motorista, responsavel, admin)
-create table tipo_user(
-	tipo_user_id serial primary key,
-	tipo varchar(50) unique
-);
-
-insert into tipo_user (tipo)
-values ('responsavel'),('motorista'),('admin');
-
--- 16. TABELA DE LOGS
+-- TABELA DE LOGS_USUARIOS
 -- guarda dados específicos de logs
 -- (precedimento, data, erro e etc)
-create table logs_sistema(
+create table logs_usuarios(
 	log_id serial primary key,
-	procedimento varchar(100) not null, -- oq foi feito
-	mensagem text not null, -- resumo do que ocorreu
+	procedimento varchar(100) not null, -- o que foi feito. EX(edição de perfil)
+	mensagem text not null, -- resumo do que ocorreu. EX(usuario trocou o endereço)
 	detalhe text,
-	usuario_id int references usuarios(user_id),
-	tipo_usuario int references tipo_user(tipo_user_id), 
+	user_id int not null references usuarios(user_id),
 	data_evento TIMESTAMP default current_timestamp
-)
+);
 
 
--- alterando tabela usuarios
-alter table usuarios
-add column tipo_user_id int;
+-- TABELA DE LOGS_PAGAMENTOS
+-- somente logs referente a pagamentos
+create table logs_pagamentos(
+	log_id serial primary key,
+	
+	ocorrencia varchar(100) not null, -- ex(pagamento rejeitado)
+	mensagem text not null, -- não foi possivel efetuar o pagamento 
+	
+	user_id int not null references usuarios(user_id),
+	pagamento_id int references pagamentos(pagamento_id),
+	
+	data_tentativa TIMESTAMP default current_TIMESTAMP
+);
 
-alter table usuarios
-add constraint fk_tipo_usuario
-foreign key (tipo_user_id) references tipo_user(tipo_user_id);
-
-alter table usuarios
-drop column tipo_user;
-
-/*
- 1 - arrumar tabelas que tem "tipo_usuario" e colocar a fk (feito)
- 2 - terminar procedure e funções de cadastrar usuarios
- 3 - criar triggers 
- */

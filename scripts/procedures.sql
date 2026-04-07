@@ -1,239 +1,220 @@
-/*
-  - terminar procedure e funções de cadastrar usuarios
-  - criar triggers 
- */
-
-CREATE OR REPLACE PROCEDURE cadastrar_usuario(
-    p_usuario_id INT,           -- quem executa id de quem executa
-    p_tipo_usuario_executor VARCHAR, -- tipo de quem executa se é admin ou motorista
-    p_nome VARCHAR,
-    p_email VARCHAR,
-    p_senha TEXT,
-    p_tel_user VARCHAR,
-    p_tipo_user INT             -- referência à tabela tipo_user
-)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    -- Validação da senha
-    BEGIN
-        PERFORM validar_senha(p_senha);
-
-    EXCEPTION
-        WHEN OTHERS THEN
-            PERFORM registrar_log(
-                'cadastrar_usuario',
-                'ERRO',
-                'Erro na validação de senha',
-                SQLERRM,
-                p_usuario_id,
-                p_tipo_usuario_executor
-            );
-            RAISE EXCEPTION 'Erro na validação da senha: %', SQLERRM;
-    END;
-
-    -- Valida nome
-    IF p_nome IS NULL OR p_nome = '' THEN
-        RAISE EXCEPTION 'O nome não pode ser vazio.';
-    END IF;
-
-    -- Valida email
-    IF p_email IS NULL OR LENGTH(p_email) <= 10 THEN
-        RAISE EXCEPTION 'O email não pode ser vazio ou conter menos que 10 caracteres.';
-    END IF;
-
-    -- Verifica duplicidade de e-mail
-    IF EXISTS (SELECT 1 FROM usuarios WHERE email = p_email) THEN
-        PERFORM registrar_log(
-            'cadastrar_usuario',
-            'ERRO',
-            'Tentativa de cadastrar e-mail existente',
-            p_email,
-            p_usuario_id,
-            p_tipo_usuario_executor
-        );
-        RAISE EXCEPTION 'Já existe um usuário com este e-mail: %', p_email;
-    END IF;
-
-    -- Inserção do usuário
-    INSERT INTO usuarios (nome, email, senha_hash, tel_user, tipo_user)
-    VALUES (p_nome, p_email, p_senha, p_tel_user, p_tipo_user);
-
-    -- Registro no log (sucesso)
-    PERFORM registrar_log(
-        'cadastrar_usuario',
-        'INSERT',
-        'Usuário cadastrado com sucesso',
-        p_email,
-        p_usuario_id,
-        p_tipo_usuario_executor
-    );
-END;
-$$;
-
-
-
-create or replace procedure cadastrar_crianca(
+-- p01 cadastrar usuario
+create or replace procedure p_cadastrar_usuario(
 	p_nome varchar,
-	p_idade int,
-	p_responsavel_main int,
-	p_responsavel_secon int,
-	p_responsavel_terceiro int,
-	p_escola_id int,
-	p_motorista_id int
+	p_cpf varchar,
+	p_email varchar,
+	p_senha_hash varchar,
+	p_tel varchar
 )
-
 language plpgsql
-
 as $$
-
 begin
-
--- valida nome da criança
-	if p_nome is null or p_nome = '' then
-		raise exception 'O nome da criança não pode ser vazio';
-	end if;
--- valida idade da criança
-	if p_idade <= 0 then
-		raise exception 'Idade inválida. Deve ser maior que zero';
-	end if;
--- valida se os responsaveis existe
-	if not exists (select 1 from responsaveis where responsavel_id = p_responsavel_main) then
-		raise exception 'Responsavel principal não encontrado.';
+	if exists(select 1 from usuarios where email = p_email)then
+		raise exception 'Email já cadastrado';
 	end if;
 
-	if p_responsavel_secon is not null then
-		if not exists(
-			select 1 from responsaveis where responsavel_id = p_responsavel_secon
-		) then
-			raise exception 'Responsável secundário informado não existe.';
-		end if;
-
-	if p_responsavel_terceiro is not null then
-		if not exists(
-			select 1 from responsaveis where responsavel_id = p_responsavel_terceiro
-		) then
-			raise exception 'Responsável terceiro informado não existe.';
-		end if;
-		
--- valida se a escola existe
-	if not exists (select 1 from escolas where escola_id = p_escola_id) then
-		raise exception 'Escola informada não encontrada';
+	if exists(select 1 from usuarios where cpf = p_cpf) then
+		raise exception 'CPF já cadastrado';
 	end if;
 	
--- se tudo ok, insere
-	insert into criancas(
-		nome, 
-		idade, 
-		responsavel_main, 
-		responsavel_secon, 
-		responsavel_terceiro,
-		escola_id,
-		motorista_id
+	insert into usuarios(
+		nome,
+		cpf,
+		email,
+		senha_hash,
+		tel_user
 	)
-	values(
-		p_nome, 
-		p_idade, 
-		p_responsavel_main, 
-		p_responsavel_secon, 
-		p_responsavel_terceiro,
-		p_escola_id,
-		p_motorista_id
+	values( 
+		p_nome,
+		p_cpf,
+		P_email,
+		p_senha_hash,
+		p_tel
 	);
 end;
 $$;
 
---========================================================================
 
-create or replace procedure registrar_pagamento(
-	p_remetente int,
-	p_destinatario int,
-	p_valor decimal(10,2),
-	p_metodo int,
-	p_mes varchar(7)
+-- p02 cadastrar criança
+create or replace procedure p_cadastrar_crianca(
+	p_empresa_id int,
+	p_nome varchar,
+	p_dt_nascimento date,
+	p_cpf varchar,
+	p_escola_id int,
+	p_plano_id int
 )
-
-language plpgsql
-as $$
-
+language plpgsql as $$
 begin
-	if p_valor <= 0 then
-		raise exception 'O valor do pagamento deve ser maior que zero.';
+	if not exists(select 1 from escolas where escola_id = p_escola_id) then
+		raise exception 'Escola não encontrada';
 	end if;
 
-	if not exists (select 1 from usuarios where user_id = p_remetente) then
-		raise exception 'Usúario remetente não encontrado.'
+	if exists(select 1 from criancas where cpf = p_cpf) then
+		raise exception 'CPF já registrado';
 	end if;
 
-	if not exists (select 1 from motorista where motorista_id = p_destinatario) then
-		raise exception 'Motorista destinatario não encontrado.'
-	end if;
-
-
-	insert into pagamentos(
-		remetente_id,
-		destinatario_id, 
-		valor,
-		metodo_pag,
-		mes_mensalidade
+	insert into criancas(
+		empresa_id,
+		nome,
+		dt_nascimento,
+		cpf,
+		escola_id,
+		plano_id
 	)
-	values (
-		p_remetente int,
-		p_destinatario int,
-		p_valor decimal,
-		p_metodo int,
-		p_mes varchar
-	)
+	values(
+		p_empresa_id,
+		p_nome,
+		P_dt_nascimento,
+		p_cpf,
+		p_escola_id,
+		p_plano_id
+	);
 end;
-$$
+$$;
 
--- ===========================================================
-create or replace procedure cadastrar_motorista(
-    p_user_id int,
-    p_cnh varchar,
-    p_status varchar,
-    p_endereco_id int,
-    p_executor_id int,
-    p_executor_tipo varchar
+--p03 gerar mensalidade
+create or replace procedure p_gerar_mensalidades_mes(
+    p_mes date
 )
 language plpgsql
 as $$
+declare
+    v_status_a_vencer int;
+    v_tipo_pagamento int;
 begin
-    -- validação
-    if not exists (select 1 from usuarios where user_id = p_user_id and tipo_user_id = 
-        (select tipo_user_id from tipo_user where tipo = 'motorista')) then
-        perform registrar_log(
-            'cadastrar_motorista',
-            'ERRO',
-            'Usuário informado não é do tipo motorista',
-            null,
-            p_executor_id,
-            p_executor_tipo
-        );
-        raise exception 'Usuário informado não é um motorista válido.';
+
+    -- buscar status 'a vencer'
+    select status_pag_id
+    into v_status_a_vencer
+    from status_pagamento
+    where tipo = 'a vencer';
+
+    if v_status_a_vencer is null then
+        raise exception 'Status "a vencer" não encontrado';
     end if;
 
-    if p_cnh is null or length(p_cnh) < 10 then
-        raise exception 'CNH inválida.';
+    -- buscar tipo de pagamento
+    select tipo_pag_id
+    into v_tipo_pagamento
+    from tipo_pagamento
+    where metodo = 'mensalidade';
+
+    if v_tipo_pagamento is null then
+        raise exception 'Tipo de pagamento "mensalidade" não encontrado';
     end if;
 
-    if p_status not in ('ativo', 'inativo') then
-        raise exception 'Status inválido. Deve ser "ativo" ou "inativo".';
-    end if;
+    -- cria pagamentos
+    insert into pagamentos (
+		crianca_id,
+        pagador_id,
+        empresa_id,
+		valor_total,
+        tipo_pag_id,
+		forma_pag_id,
+        mes_mensalidade,
+        status_pag_id
+    )
+    select
+		cr.crianca_id,
+		cr.responsavel_id,
+        c.empresa_id,
+        fn_calcular_valor_final(
+            p.valor_base,
+            p.desconto,
+            p.multa,
+            p.valor_reajuste
+        ),
+        v_tipo_pagamento,
+		null,
+        p_mes,
+        v_status_a_vencer
+    from criancas c
+    join planos_transporte p
+        on p.plano_id = c.plano_id
+    join criancas_responsaveis cr
+        on cr.crianca_id = c.crianca_id
+        and cr.principal = true
+    where not exists (
+        select 1
+        from pagamentos pg
+        join pagamento_crianca pc
+            on pc.pagamento_id = pg.pagamento_id
+        where pc.crianca_id = c.crianca_id
+        and pg.mes_mensalidade = p_mes
+    );
 
-    -- se tudo der certo.
-    insert into motoristas(user_id, cnh, status, endereco_id)
-    values (p_user_id, p_cnh, p_status, p_endereco_id);
-
-    -- log de sucesso
-    perform registrar_log(
-        'cadastrar_motorista',
-        'SUCESSO',
-        'Motorista cadastrado com sucesso.',
-        format('user_id=%s, cnh=%s', p_user_id, p_cnh),
-        p_executor_id,
-        p_executor_tipo
+    -- cria itens do pagamento
+    insert into pagamento_crianca (
+        pagamento_id,
+        crianca_id,
+        valor_base,
+        desconto,
+        multa,
+        reajuste,
+        valor_final
+    )
+    select
+        pg.pagamento_id,
+        pg.crianca_id,
+        p.valor_base,
+        p.desconto,
+        p.multa,
+        p.valor_reajuste,
+        fn_calcular_valor_final(
+            p.valor_base,
+            p.desconto,
+            p.multa,
+            p.valor_reajuste
+        )
+    from pagamentos pg
+    join criancas c
+        on c.crianca_id = pg.crianca_id
+    join planos_transporte p
+        on p.plano_id = c.plano_id
+    join criancas_responsaveis cr
+        on cr.crianca_id = c.crianca_id
+        and cr.principal = true
+    where pg.mes_mensalidade = p_mes
+    and not exists (
+        select 1
+        from pagamento_crianca pc
+        where pc.pagamento_id = pg.pagamento_id
+        and pc.crianca_id = pg.crianca_id
     );
 
 end;
 $$;
+
+--p04 confirmar pagamento
+
+--p05 vincular motorista com veiculo
+create or replace procedure p_vincular_motorista_veiculo(
+	p_motorista_id int,
+	p_veiculo_id int
+)
+language plpgsql as $$
+begin
+
+	if not exists(select 1 from motoristas where motorista_id = p_motorista_id and ativo = true)then
+		raise exception 'Motorista inválido';
+	end if;
+
+	if not exists(select 1 from veiculos where veiculo_id = p_veiculo_id and ativo = true)then
+		raise exception 'Veiculo inválido';
+	end if;
+	
+	insert into motorista_veiculo(
+		motorista_id,
+		veiculo_id
+	)
+	values(
+		p_motorista_id,
+		p_veiculo_id
+	);
+end;
+$$;
+
+--p05 gerar pagamentos automaticos
+-- 1- pegar todas as crianças da empresa, 2- verificar plano, 
+-- -3 gerar pagamentos automaticos
