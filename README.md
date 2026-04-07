@@ -27,19 +27,19 @@ O sistema foi desenvolvido com foco em automação de mensalidades, segurança d
 O banco foi dividido em módulos:
 
 ### 1.📍 Cadastros
-- `usuarios` → informações de login e tipo de usuário (motorista, responsável, admin)
-- `responsaveis` → vínculo de responsáveis com as crianças
-- `criancas`
+- `usuarios`
+- `responsaveis`
+- `criancas` 
 - `empresas`
 - `escolas`
 - `enderecos`
 
 ### 2.🚐 Transporte
-- `motoristas` → dados dos condutores
-- `veiculos` → informações sobre os veículos
-- `motorista_veiculo` → relação N:N entre motoristas e veículos
-- `rotina_transporte` → rotinas diárias de transporte (rota, horários, endereços)
-- `localizacao_real_tempo` → rastreamento em tempo real do motorista
+- `motoristas` 
+- `veiculos` 
+- `motorista_veiculo`
+- `rotina_transporte`
+- `localizacao_real_tempo` 
 
 ### 3.💳 Financeiro
 - `pagamentos`
@@ -50,11 +50,11 @@ O banco foi dividido em módulos:
 - `forma_pagamento`
 
 ### 4.📝 Auditoria
-- `logs_usuarios` → informações pessoais e responsáveis associados
-- `logs_pagamentos` → cadastro das instituições de ensino
+- `logs_usuarios` 
+- `logs_pagamentos`
 
 ### 5.📱 Comunicação
-- `chat` → sistema de troca de mensagens entre usuários
+- `chat`
 
 
 ---
